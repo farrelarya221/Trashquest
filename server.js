@@ -20,12 +20,37 @@ const CONTRACT_ABI = [
 app.use(cors());
 app.use(express.json());
 
+// Normalisasi URL untuk Vercel Serverless (menghapus prefix /api/index.js jika diteruskan oleh rewrite)
+app.use((req, res, next) => {
+  if (req.url.startsWith('/api/index.js')) {
+    req.url = req.url.replace('/api/index.js', '') || '/';
+  }
+  next();
+});
+
 const provider = new ethers.JsonRpcProvider(SEPOLIA_RPC_URL);
 
 /**
- * GET /api/status
+ * GET / & /api
+ * Root health check endpoint
  */
-app.get('/api/status', async (req, res) => {
+app.get(['/', '/api'], (req, res) => {
+  res.json({
+    success: true,
+    message: '🌱 TrashQuest Blockchain Relayer API Server is Running Online!',
+    network: 'Ethereum Sepolia Testnet',
+    contractAddress: CONTRACT_ADDRESS,
+    endpoints: {
+      status: '/api/status',
+      mint: 'POST /api/mint'
+    }
+  });
+});
+
+/**
+ * GET /api/status & /status
+ */
+app.get(['/api/status', '/status'], async (req, res) => {
   try {
     const blockNumber = await provider.getBlockNumber();
     const feeData = await provider.getFeeData();
@@ -59,10 +84,10 @@ app.get('/api/status', async (req, res) => {
 const mintedCertificates = new Map();
 
 /**
- * POST /api/mint
+ * POST /api/mint & /mint
  * Endpoint otomatis untuk mencetak piagam on-chain baru dengan private key
  */
-app.post('/api/mint', async (req, res) => {
+app.post(['/api/mint', '/mint'], async (req, res) => {
   try {
     const {
       certId = `TRQ-CERT-${Date.now()}`,
